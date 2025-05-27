@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 import boto3
 
-BUCKET_NAME = "project3-weather-test "
+BUCKET_NAME = "weather-etl-data-st0263"
 LATITUDE = 6.25
 LONGITUDE = -75.56
 

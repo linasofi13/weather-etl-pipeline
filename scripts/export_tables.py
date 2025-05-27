@@ -15,7 +15,7 @@ db_name = os.getenv("DB_NAME")
 aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
 aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
-bucket_name = "project3-weather-test"
+bucket_name = "weather-etl-data-st0263"
 
 # Conexión a MySQL
 conn = mysql.connector.connect(
