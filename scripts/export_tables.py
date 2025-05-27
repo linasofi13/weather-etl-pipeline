@@ -44,7 +44,7 @@ for table in tables:
     print(f"{table}.csv exportado a {file_path}")
 
     # Subir a S3
-    s3.upload_file(file_path, bucket_name, f"{table}.csv")
+    s3.upload_file(file_path, bucket_name, f"raw_data/{table}.csv")
     print(f"{table}.csv subido a S3 bucket {bucket_name}")
 
 conn.close()
