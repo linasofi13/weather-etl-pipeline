@@ -8,7 +8,6 @@ from datetime import datetime
 
 BUCKET_NAME = "weather-etl-data-st0263"
 
-# Lista de ciudades
 CITIES = [
     {"id": 1, "name": "New York", "latitude": 40.7128, "longitude": -74.006},
     {"id": 2, "name": "London", "latitude": 51.5074, "longitude": -0.1278},
