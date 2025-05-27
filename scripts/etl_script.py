@@ -9,18 +9,18 @@ output_path = "s3://weather-etl-data-st0263/trusted_data/weather_summary/"
 
 weather_df = spark.read.option("header", True).csv(api_path)
 weather_df = weather_df.withColumn("temperature_2m", col("temperature_2m").cast("float"))
-weather_df = weather_df.withColumn("date", to_date(col("time")))
+weather_df = weather_df.withColumn("date", to_date(col("time"))).alias("w")
 
-cities_df = spark.read.option("header", True).csv(mysql_path)
+cities_df = spark.read.option("header", True).csv(mysql_path).alias("c")
 
-merged_df = weather_df.join(cities_df, weather_df.name == cities_df.name, "inner")
+merged_df = weather_df.join(cities_df, col("w.name") == col("c.name"), "inner")
 
-summary_df = merged_df.groupBy("name", "date").agg(
+summary_df = merged_df.groupBy(col("w.name").alias("name"), "date").agg(
     min("temperature_2m").alias("temp_min"),
     max("temperature_2m").alias("temp_max"),
     avg("temperature_2m").alias("temp_avg"),
-    col("latitude"),
-    col("longitude")
+    col("c.latitude"),
+    col("c.longitude")
 )
 
 summary_df.write.mode("overwrite").option("header", True).csv(output_path)
