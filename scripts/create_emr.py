@@ -7,24 +7,73 @@ def create_emr_cluster():
 
     emr = boto3.client('emr', region_name=region)
     response = emr.run_job_flow(
-        Name="weather-etl-cluster-test",
-        ReleaseLabel="emr-6.9.0",
-        Applications=[{'Name': 'Spark'}],
+        Name="weather-etl-cluster",
+        ReleaseLabel="emr-7.3.0",
+        Applications=[
+            {'Name': 'HBase'},
+            {'Name': 'HCatalog'},
+            {'Name': 'Hadoop'},
+            {'Name': 'Hive'},
+            {'Name': 'Hue'},
+            {'Name': 'JupyterHub'},
+            {'Name': 'Spark'},
+            {'Name': 'Sqoop'}
+        ],
         Instances={
             'InstanceGroups': [
-                {
-                    'Name': 'Master',
-                    'Market': 'ON_DEMAND',
-                    'InstanceRole': 'MASTER',
-                    'InstanceType': 'm5.xlarge',
-                    'InstanceCount': 1
-                },
                 {
                     'Name': 'Core',
                     'Market': 'ON_DEMAND',
                     'InstanceRole': 'CORE',
                     'InstanceType': 'm5.xlarge',
-                    'InstanceCount': 1
+                    'InstanceCount': 2,
+                    'EbsConfiguration': {
+                        'EbsBlockDeviceConfigs': [
+                            {
+                                'VolumeSpecification': {
+                                    'VolumeType': 'gp2',
+                                    'SizeInGB': 32
+                                },
+                                'VolumesPerInstance': 2
+                            }
+                        ]
+                    }
+                },
+                {
+                    'Name': 'Task - 1',
+                    'Market': 'ON_DEMAND',
+                    'InstanceRole': 'TASK',
+                    'InstanceType': 'm5.xlarge',
+                    'InstanceCount': 1,
+                    'EbsConfiguration': {
+                        'EbsBlockDeviceConfigs': [
+                            {
+                                'VolumeSpecification': {
+                                    'VolumeType': 'gp2',
+                                    'SizeInGB': 32
+                                },
+                                'VolumesPerInstance': 2
+                            }
+                        ]
+                    }
+                },
+                {
+                    'Name': 'Primary',
+                    'Market': 'ON_DEMAND',
+                    'InstanceRole': 'MASTER',
+                    'InstanceType': 'm5.xlarge',
+                    'InstanceCount': 1,
+                    'EbsConfiguration': {
+                        'EbsBlockDeviceConfigs': [
+                            {
+                                'VolumeSpecification': {
+                                    'VolumeType': 'gp2',
+                                    'SizeInGB': 32
+                                },
+                                'VolumesPerInstance': 2
+                            }
+                        ]
+                    }
                 }
             ],
             'KeepJobFlowAliveWhenNoSteps': False,
@@ -32,7 +81,7 @@ def create_emr_cluster():
         },
         Steps=[
             {
-                'Name': 'Basic ETL Step',
+                'Name': 'ETL',
                 'ActionOnFailure': 'TERMINATE_CLUSTER',
                 'HadoopJarStep': {
                     'Jar': 'command-runner.jar',
