@@ -2,31 +2,36 @@ import boto3
 import time
 
 def create_emr_cluster():
-    emr = boto3.client('emr', region_name='us-east-1')  # Asegura región
+    emr = boto3.client('emr', region_name='us-east-1')
     bucket = "weather-etl-data-st0263"
 
     response = emr.run_job_flow(
         Name="weather-etl-cluster",
         ReleaseLabel="emr-6.9.0",
-        Applications=[{'Name': 'Spark'}],
+        Applications=[
+            {'Name': 'Spark'},
+            {'Name': 'Hive'},
+            {'Name': 'Hue'},
+            {'Name': 'JupyterHub'}
+        ],
         Instances={
             'InstanceGroups': [
                 {
-                    'Name': 'Master node',
+                    'Name': 'Master',
                     'Market': 'ON_DEMAND',
                     'InstanceRole': 'MASTER',
                     'InstanceType': 'm5.xlarge',
                     'InstanceCount': 1
                 },
                 {
-                    'Name': 'Core nodes',
+                    'Name': 'Core',
                     'Market': 'ON_DEMAND',
                     'InstanceRole': 'CORE',
                     'InstanceType': 'm5.xlarge',
                     'InstanceCount': 1
                 }
             ],
-            'KeepJobFlowAliveWhenNoSteps': False,  # El cluster se cierra al finalizar el paso
+            'KeepJobFlowAliveWhenNoSteps': False,  # Cierra al terminar el paso
             'TerminationProtected': False
         },
         Steps=[
@@ -38,14 +43,43 @@ def create_emr_cluster():
                     'Args': [
                         'spark-submit',
                         '--deploy-mode', 'cluster',
+                        '--conf', 'spark.executor.memory=2g',
                         f"s3://{bucket}/scripts/etl_script.py"
                     ]
                 }
             }
         ],
-        JobFlowRole='EMR_EC2_DefaultRole',
-        ServiceRole='EMR_DefaultRole',
         LogUri=f"s3://{bucket}/logs/",
+        ServiceRole='EMR_DefaultRole',
+        JobFlowRole='EMR_EC2_DefaultRole',
+        Configurations=[
+            {
+                "Classification": "hue-ini",
+                "Properties": {},
+                "Configurations": [
+                    {
+                        "Classification": "desktop",
+                        "Properties": {
+                            "secret_signature": "your-secret-signature"
+                        }
+                    }
+                ]
+            },
+            {
+                "Classification": "spark",
+                "Properties": {
+                    "maximizeResourceAllocation": "true"
+                }
+            }
+        ],
+        BootstrapActions=[
+            {
+                'Name': 'Install Jupyter Libraries',
+                'ScriptBootstrapAction': {
+                    'Path': f"s3://{bucket}/scripts/bootstrap_jupyter.sh"
+                }
+            }
+        ],
         VisibleToAllUsers=True
     )
 
