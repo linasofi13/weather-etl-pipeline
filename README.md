@@ -21,3 +21,10 @@ python scripts/export_tables.py
 mysql -h weather-database.cr9l2ltlcjjs.us-east-1.rds.amazonaws.com -u admin -p <password> weather_project < sql/create_tables.sql
 ```
 
+3. Run the EMR creation script.
+
+```bash
+python scripts/emr_creation.py
+```
+
+This will run automatically the ETL script and the data will be stored in the S3 bucket.
