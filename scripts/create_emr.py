@@ -39,7 +39,7 @@ def create_emr_cluster():
                     'Args': [
                         'spark-submit',
                         '--deploy-mode', 'cluster',
-                        f"s3://{bucket}/scripts/basic_etl.py"
+                        f"s3://{bucket}/scripts/etl_script.py"
                     ]
                 }
             }
