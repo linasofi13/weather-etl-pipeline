@@ -81,7 +81,7 @@ El proyecto sigue una arquitectura de procesamiento por lotes con tres capas pri
 
 ## Patrones y Mejores Prácticas
 - Arquitectura de medallón (Raw → Trusted → Refined)
-- Código modular y reutilizable
+- Código modular 
 - Control de versiones para datos y código
 - Manejo de errores y logging
 - Configuración externalizada
