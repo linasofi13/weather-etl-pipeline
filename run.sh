@@ -11,3 +11,4 @@ aws s3 cp scripts/etl_script.py s3://weather-etl-data-st0263/scripts/
 
 # Copy analysis script
 aws s3 cp scripts/analysis_script.py s3://weather-etl-data-st0263/scripts/
+

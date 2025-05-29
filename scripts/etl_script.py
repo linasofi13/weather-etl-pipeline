@@ -41,11 +41,15 @@ daily_weather = weather_df \
 cities_df = spark.read.option("header", True).csv(f"{mysql_data_path}/cities.csv")
 consumption_df = spark.read.option("header", True).csv(f"{mysql_data_path}/city_consumption.csv")
 population_df = spark.read.option("header", True).csv(f"{mysql_data_path}/population.csv")
+regions_df = spark.read.option("header", True).csv(f"{mysql_data_path}/regions.csv")
+city_region_df = spark.read.option("header", True).csv(f"{mysql_data_path}/city_region.csv")
 
-# Join MySQL data
+# Join MySQL data including regions
 city_info = cities_df \
     .join(consumption_df, cities_df.id == consumption_df.city_id) \
     .join(population_df, cities_df.id == population_df.city_id) \
+    .join(city_region_df, cities_df.id == city_region_df.city_id) \
+    .join(regions_df, city_region_df.region_id == regions_df.id) \
     .select(
         cities_df.name,
         cities_df.latitude,
@@ -53,7 +57,8 @@ city_info = cities_df \
         consumption_df.water_m3,
         consumption_df.electricity_kwh,
         population_df.population,
-        consumption_df.year
+        consumption_df.year,
+        regions_df.region_name.alias("country")
     )
 
 # Join weather data with city information
@@ -70,6 +75,7 @@ final_df = daily_weather \
         "water_m3",
         "electricity_kwh",
         "population",
+        "country",
         city_info.year
     )
 
