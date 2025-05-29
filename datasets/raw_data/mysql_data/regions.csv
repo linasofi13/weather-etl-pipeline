@@ -1,32 +1,43 @@
-city_id,year,population
-1,2025,8097282
-2,2025,9841000
-3,2025,37036000
-4,2025,11347000
-5,2025,5249000
-6,2025,3580000
-7,2025,22990000
-8,2025,6431000
-9,2025,5064000
-10,2025,22089000
-11,2025,4173000
-12,2025,9200000
-13,2025,6700000
-14,2025,11920000
-15,2025,21540000
-16,2025,2873000
-17,2025,15160000
-18,2025,6158000
-19,2025,9765000
-20,2025,10230000
-21,2025,8847000
-22,2025,1037000
-23,2025,872800
-24,2025,975500
-25,2025,1657000
-26,2025,10539000
-27,2025,10750000
-28,2025,8054000
-29,2025,15460000
-30,2025,2967000
-31,2025,1793000
+id,region_name
+1,United States
+2,United Kingdom
+3,Japan
+4,France
+5,Australia
+6,Germany
+7,Brazil
+8,Canada
+9,South Africa
+10,India
+11,Colombia
+12,Mexico
+13,Spain
+14,Russia
+15,China
+16,Italy
+17,Argentina
+18,Chile
+19,South Korea
+20,Egypt
+21,Peru
+22,Norway
+23,Netherlands
+24,Sweden
+25,New Zealand
+26,Thailand
+27,Indonesia
+28,Vietnam
+29,Turkey
+30,Ukraine
+31,Poland
+32,United Arab Emirates
+33,Singapore
+34,Austria
+35,Czech Republic
+36,Greece
+37,Ireland
+38,Finland
+39,Belgium
+40,Portugal
+41,Hungary
+42,Denmark
