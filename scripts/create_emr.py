@@ -91,8 +91,21 @@ def create_emr_cluster():
                         f"s3://{bucket}/scripts/etl_script.py"
                     ]
                 }
+            },
+            {
+                'Name': 'Weather Analysis',
+                'ActionOnFailure': 'TERMINATE_CLUSTER',
+                'HadoopJarStep': {
+                    'Jar': 'command-runner.jar',
+                    'Args': [
+                        'spark-submit',
+                        '--deploy-mode', 'cluster',
+                        f"s3://{bucket}/scripts/analysis_script.py"
+                    ]
+                }
             }
         ],
+
         JobFlowRole='EMR_EC2_DefaultRole',
         ServiceRole='EMR_DefaultRole',
         LogUri=f"s3://{bucket}/logs/",
