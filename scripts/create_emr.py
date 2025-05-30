@@ -6,7 +6,7 @@ def create_emr_cluster_quick_steps():
 
     resp = emr.run_job_flow(
         Name="quick-steps-test",
-        ReleaseLabel="emr-7.3.0",
+        ReleaseLabel="emr-6.15.0",
         Applications=[{'Name': 'Spark'}],
         Instances={
             'InstanceGroups': [
