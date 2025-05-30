@@ -58,7 +58,6 @@ def index():
             '/consumption/rankings': 'Get consumption rankings by city (avg_kwh_per)',
             '/predictions/electricity': 'Get electricity consumption predictions by city',
             '/correlations': 'Get correlation analysis between weather and consumption',
-            '/clusters': 'Get city clusters based on weather and consumption patterns'
         }
     }
 
@@ -219,18 +218,3 @@ def get_correlations():
             body={'error': str(e)},
             status_code=500
         )
-
-@app.route('/clusters')
-def get_clusters():
-    try:
-        # Read cluster results from refined zone
-        clusters_df = pd.read_csv(
-            f's3://{BUCKET}/refined/city_clusters/part-00000-*.csv'
-        )
-        clusters = clusters_df.to_dict('records')
-        return {'clusters': clusters}
-    except Exception as e:
-        return Response(
-            body={'error': str(e)},
-            status_code=500
-        ) 
