@@ -4,11 +4,12 @@
   "stages": {
     "dev": {
       "api_gateway_stage": "api",
+      "autogen_policy": false,
+      "iam_role_arn": "arn:aws:iam::407110738051:role/LabRole",
       "environment_variables": {
         "AWS_DEFAULT_REGION": "us-east-1",
         "BUCKET_NAME": "weather-etl-data-st0263"
-      },
-      "iam_role_arn": "arn:aws:iam::${AWS::AccountId}:role/weather-api-role"
+      }
     }
   }
 } 
