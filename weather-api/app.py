@@ -13,7 +13,7 @@ app = Chalice(app_name='weather-api')
 s3 = boto3.client('s3', region_name=os.getenv('REGION', 'us-east-1'))
 athena_connection = connect(
     s3_staging_dir=f's3://weather-etl-data-st0263/query_results/',
-    region_name=os.getenv('AWS_REGION', 'us-east-1')
+    region_name=os.getenv('REGION', 'us-east-1')
 )
 
 BUCKET = os.getenv('BUCKET_NAME', 'weather-etl-data-st0263')
@@ -55,7 +55,7 @@ def index():
             '/cities': 'List all cities with their latest weather data',
             '/city/{city_name}': 'Get detailed weather data for a specific city',
             '/temperature/rankings': 'Get temperature rankings by city (mean_temp)',
-            '/consumption/rankings': 'Get consumption rankings by city (avg_kwh_per_capita)',
+            '/consumption/rankings': 'Get consumption rankings by city (avg_kwh_per)',
             '/predictions/electricity': 'Get electricity consumption predictions by city',
             '/correlations': 'Get correlation analysis between weather and consumption',
             '/clusters': 'Get city clusters based on weather and consumption patterns'
@@ -66,7 +66,7 @@ def index():
 def list_cities():
     query = """
     SELECT DISTINCT city, country, latitude, longitude
-    FROM trusted
+    FROM weather_refined.trusted
     WHERE year = 2025
     """
     try:
@@ -83,7 +83,7 @@ def get_city_data(city_name):
     query = f"""
     SELECT city, date, avg_temperature, min_temperature, max_temperature,
            water_m3, electricity_kwh, population, country
-    FROM trusted
+    FROM weather_refined.trusted
     WHERE city = '{city_name}'
     AND year = 2025
     ORDER BY date DESC
@@ -139,14 +139,18 @@ def get_temperature_rankings():
 def get_consumption_rankings():
     """
     Get consumption rankings from consumption_ranking data
-    Returns: city and avg_kwh_per_capita for each city
+    Returns: city and avg_kwh_per for each city
     """
     try:
         df = read_csv_from_s3('refined/consumption_ranking/')
         
         # Ensure we have the expected columns
-        if 'city' not in df.columns or 'avg_kwh_per' not in df.columns:
+        if 'city' not in df.columns:
             raise Exception("Invalid data format in consumption rankings file")
+        
+        # Rename columns if necessary based on actual CSV structure
+        if 'avg_kwh_per' not in df.columns and 'avg_kwh_pe' in df.columns:
+            df = df.rename(columns={'avg_kwh_pe': 'avg_kwh_per'})
         
         # Sort by consumption descending
         df = df.sort_values('avg_kwh_per', ascending=False)
@@ -204,7 +208,7 @@ def get_correlations():
         corr(avg_temperature, electricity_kwh) as temp_electricity_corr,
         corr(avg_temperature, water_m3) as temp_water_corr,
         corr(electricity_kwh, water_m3) as electricity_water_corr
-    FROM trusted
+    FROM weather_refined.trusted
     WHERE year = 2025
     """
     try:
