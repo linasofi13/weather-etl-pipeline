@@ -139,7 +139,7 @@ def get_temperature_rankings():
 def get_consumption_rankings():
     """
     Get consumption rankings from consumption_ranking data
-    Returns: city and avg_kwh_per for each city
+    Returns: city and avg_kwh_per_person for each city
     """
     try:
         df = read_csv_from_s3('refined/consumption_ranking/')
@@ -149,11 +149,11 @@ def get_consumption_rankings():
             raise Exception("Invalid data format in consumption rankings file")
         
         # Rename columns if necessary based on actual CSV structure
-        if 'avg_kwh_per' not in df.columns and 'avg_kwh_pe' in df.columns:
-            df = df.rename(columns={'avg_kwh_pe': 'avg_kwh_per'})
+        if 'avg_kwh_per_person' not in df.columns and 'avg_kwh_pe' in df.columns:
+            df = df.rename(columns={'avg_kwh_pe': 'avg_kwh_per_person'})
         
         # Sort by consumption descending
-        df = df.sort_values('avg_kwh_per', ascending=False)
+        df = df.sort_values('avg_kwh_per_person', ascending=False)
         
         # Convert DataFrame to records
         rankings = df.to_dict('records')
