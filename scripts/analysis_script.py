@@ -177,20 +177,9 @@ best_predictions.select("city", "avg_temperature", "electricity_kwh", "predictio
     .write.mode("overwrite").option("header", True) \
     .csv("s3://weather-etl-data-st0263/refined/electricity_predictions")
 
-# Resultados de clustering
-city_clusters.write.mode("overwrite").option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/city_clusters")
-
-# Estadísticas y outliers
-outliers.select("city", "date", "kwh_per_capita", "avg_temperature") \
-    .write.mode("overwrite").option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/consumption_outliers")
-
 print("=== ANÁLISIS COMPLETADO ===")
 print("Resultados guardados en zona refined:")
 print("- temperature_per_city: Temperatura promedio por ciudad")
 print("- consumption_ranking: Ranking de consumo per cápita")
 print("- electricity_predictions: Predicciones de consumo eléctrico")
-print("- city_clusters: Segmentación de ciudades por patrones")
-print("- consumption_outliers: Outliers en consumo detectados")
 print(f"- Mejor modelo predictivo: {model_name}")
