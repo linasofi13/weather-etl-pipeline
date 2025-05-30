@@ -13,14 +13,14 @@
 Este proyecto implementa un pipeline de datos para recolectar, procesar y analizar datos meteorológicos de varias ciudades alrededor del mundo. El sistema integra datos de una API meteorológica con información demográfica y de consumo almacenada en MySQL, realizando transformaciones y análisis predictivo usando Spark.
 
 ### 1.1. Aspectos desarrollados
-- ✅ Recolección automática de datos meteorológicosd de ciudades del mundo mediante API
-- ✅ Integración con base de datos MySQL para datos demográficos y de consumo
-- ✅ Pipeline ETL completo usando Apache Spark
-- ✅ Implementación de modelos de Machine Learning (Regresión Lineal y Random Forest)
-- ✅ Almacenamiento en capas (raw, trusted, refined) en S3
-- ✅ Automatización del despliegue en EMR
-- ✅ Análisis de correlaciones y predicciones de temperatura
-- ✅ Resultados expuestos para ser consultados a través de Athena y API Gateway.
+- Recolección automática de datos meteorológicosd de ciudades del mundo mediante API
+- Integración con base de datos MySQL para datos demográficos y de consumo
+- Pipeline ETL completo usando Apache Spark
+- Implementación de modelos de Machine Learning (Regresión Lineal y Random Forest)
+- Almacenamiento en capas (raw, trusted, refined) en S3
+- Automatización del despliegue en EMR
+- Análisis de correlaciones y predicciones de temperatura
+- Resultados expuestos para ser consultados a través de Athena y API Gateway.
 
 ### 1.2. Aspectos NO desarrollados
 - Todo los objetivos fueron desarrollados.
