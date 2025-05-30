@@ -164,7 +164,37 @@ weather-etl-pipeline/
 - Amazon S3
 - Amazon RDS (MySQL)
 
-### 4.2. Configuración
+### 4.2 Amazon Athena
+Amazon Athena se utilizó como mecanismo de consulta interactiva para validar los resultados del procesamiento analítico realizado en Spark y almacenado en S3. Su integración permite consultar, desde SQL, los datos ya transformados y enriquecidos tanto desde la API como desde la consola de AWS, sin necesidad de servidores ni bases de datos adicionales.
+
+#### Estructura en S3
+Para que Athena pueda acceder a los datos, se organizó el almacenamiento en S3 en diferentes carpetas correspondientes a las zonas del pipeline:
+
+- **raw_data/**: Contiene los archivos originales provenientes de la API y la base de datos relacional.
+- **trusted/**: Almacena los datos procesados y unificados en Spark, incluyendo atributos de clima, consumo y población por ciudad y día.
+- **refined/**: Contiene resultados específicos del análisis, como rankings de temperatura, consumo eléctrico per cápita y predicciones generadas por modelos.
+- **query_results/**: Carpeta designada para guardar los resultados de cada consulta ejecutada en Athena.
+
+#### Configuración de Athena
+Se configuró Athena con las siguientes especificaciones:
+
+- Ubicación predeterminada de resultados: carpeta `query_results/` dentro del bucket
+- Base de datos lógica: `weather_refined`
+- Tablas externas que apuntan directamente a los archivos CSV almacenados en S3
+- Tabla principal `trusted` particionada por año
+- Ejecución del comando `MSCK REPAIR TABLE` para registrar correctamente las particiones dinámicas
+
+#### Validaciones con Athena
+
+
+- Consultar datos climáticos y de consumo por ciudad y fecha
+- Obtener rankings de ciudades según consumo energético per cápita
+- Analizar correlaciones estadísticas entre variables como temperatura, agua y electricidad
+- Explorar las predicciones de consumo generadas por modelos entrenados
+
+Estos datos también son accedidos automáticamente desde la API desplegada en AWS Chalice, lo que conecta los resultados analíticos con una interfaz REST pública.
+
+### 4.3 Configuración
 1. Variables de ambiente necesarias:
 ```bash
 export DB_HOST=localhost
@@ -188,7 +218,7 @@ s3://weather-etl-data-st0263/
 └── refined/
 ```
 
-### 4.3 Ejecución
+### 4.4 Ejecución
 1. Ingesta de datos:
 ```bash
 python scripts/ingest_api.py
@@ -200,11 +230,20 @@ python scripts/export_tables.py
 python scripts/emr_creation.py
 ```
 
-### 4.4 Resultados
+### 4.5 Resultados
 Los datos procesados se almacenan en las siguientes ubicaciones:
 - Datos crudos: `s3://weather-etl-data-st0263/raw_data/`
 - Datos procesados: `s3://weather-etl-data-st0263/trusted/`
 - Análisis y predicciones: `s3://weather-etl-data-st0263/refined/`
+
+### 4.6 API REST
+Se ha implementado una API REST utilizando AWS Chalice que expone los datos procesados y análisis realizados. La API proporciona endpoints para:
+- Consultar datos meteorológicos por ciudad
+- Rankings de temperatura y consumo
+- Predicciones de consumo eléctrico
+- Análisis de correlaciones entre variables
+
+La API está construida con AWS Chalice y se integra con Amazon Athena para consultar los datos procesados en S3. Para más detalles sobre la implementación, endpoints disponibles y ejemplos de uso, consulte la [documentación detallada de la API](weather-api/README.md).
 
 ## 5. Información Adicional
 - El proyecto incluye manejo de errores y reintentos para la ingesta de API

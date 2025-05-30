@@ -52,7 +52,7 @@ def read_csv_from_s3(path):
 def index():
     return {
         'available_endpoints': {
-            '/cities': 'List all cities with their latest weather data',
+            '/cities': 'List all cities with their coordinates',
             '/city/{city_name}': 'Get detailed weather data for a specific city',
             '/temperature/rankings': 'Get temperature rankings by city (mean_temp)',
             '/consumption/rankings': 'Get consumption rankings by city (avg_kwh_per)',

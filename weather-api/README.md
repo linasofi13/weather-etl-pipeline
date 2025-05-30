@@ -1,4 +1,4 @@
-# Weather Data API
+# API de Datos Meteorológicos
 
 Esta API proporciona acceso a los datos meteorológicos, análisis y predicciones del pipeline ETL de datos meteorológicos.
 
@@ -52,71 +52,202 @@ aws iam attach-role-policy --role-name weather-api-role --policy-arn arn:aws:iam
 chalice deploy
 ```
 
-## Endpoints Disponibles
+## Documentación de la API
 
-### GET /
-Lista todos los endpoints disponibles.
+### Descripción General
+La API es un servicio REST construido con AWS Chalice que proporciona acceso a datos meteorológicos, métricas de consumo y análisis predictivo. Se integra con Amazon Athena para consultar datos procesados y S3 para acceder a conjuntos de datos refinados.
 
-### GET /cities
-Lista todas las ciudades con sus datos básicos.
+### Tecnologías Utilizadas
+- **AWS Chalice**: Framework serverless para construir APIs REST
+- **PyAthena**: Interfaz DB-API de Python para Amazon Athena
+- **Pandas**: Manipulación y análisis de datos
+- **Boto3**: SDK de AWS para Python
+- **Python-dotenv**: Gestión de variables de entorno
 
-### GET /city/{city_name}
-Obtiene datos detallados de una ciudad específica.
-
-### GET /temperature/rankings
-Obtiene el ranking de temperaturas de las ciudades.
-
-### GET /consumption/rankings
-Obtiene el ranking de consumo eléctrico per cápita.
-
-### GET /predictions/electricity
-Obtiene predicciones de consumo eléctrico.
-
-### GET /correlations
-Obtiene análisis de correlación entre variables.
-
-### GET /clusters
-Obtiene los clusters de ciudades basados en patrones de consumo y clima.
-
-## Ejemplos de Uso
-
-```python
-import requests
-
-# Base URL de tu API (reemplazar con la URL real después del despliegue)
-BASE_URL = "https://your-api-id.execute-api.region.amazonaws.com/api"
-
-# Listar todas las ciudades
-response = requests.get(f"{BASE_URL}/cities")
-cities = response.json()
-
-# Obtener datos de una ciudad específica
-city_name = "New York"
-response = requests.get(f"{BASE_URL}/city/{city_name}")
-city_data = response.json()
-
-# Obtener rankings de temperatura
-response = requests.get(f"{BASE_URL}/temperature/rankings")
-rankings = response.json()
+### Dependencias
+```
+chalice==1.29.0
+boto3==1.26.6         
+pandas==2.2.2
+pyathena==2.25.2
+python-dotenv==1.0.1
 ```
 
-## Notas de Seguridad
+### Endpoints de la API
 
-- La API utiliza autenticación IAM
-- Los datos son accedidos a través de Athena y S3
-- Las consultas están optimizadas y tienen límites para prevenir sobrecarga
+#### 1. Listar Endpoints Disponibles
+- **Endpoint**: `/`
+- **Método**: GET
+- **Descripción**: Devuelve una lista de todos los endpoints disponibles y sus descripciones
+- **Ejemplo de Respuesta**:
+```json
+{
+    "available_endpoints": {
+        "/cities": "Lista de ciudades con sus coordenadas",
+        "/city/{city_name}": "Datos meteorológicos detallados de una ciudad específica",
+        "/temperature/rankings": "Rankings de temperatura por ciudad (temperatura media)",
+        "/consumption/rankings": "Rankings de consumo por ciudad (kwh per cápita)",
+        "/predictions/electricity": "Predicciones de consumo eléctrico por ciudad",
+        "/correlations": "Análisis de correlación entre clima y consumo"
+    }
+}
+```
 
-## Troubleshooting
+#### 2. Listar Ciudades
+- **Endpoint**: `/cities`
+- **Método**: GET
+- **Descripción**: Devuelve una lista de todas las ciudades con sus coordenadas geográficas
+- **Ejemplo de Respuesta**:
+```json
+{
+    "cities": [
+        {
+            "city": "Medellín",
+            "country": "Colombia",
+            "latitude": 6.2442,
+            "longitude": -75.5812
+        }
+    ]
+}
+```
 
-1. Si hay problemas con los permisos:
-   - Verificar que el rol IAM tenga todas las políticas necesarias
-   - Verificar que las credenciales de AWS estén configuradas correctamente
+#### 3. Datos Meteorológicos por Ciudad
+- **Endpoint**: `/city/{city_name}`
+- **Método**: GET
+- **Descripción**: Devuelve datos detallados meteorológicos y de consumo de una ciudad específica
+- **Parámetros**: 
+  - `city_name`: Nombre de la ciudad (codificado en URL)
+- **Ejemplo de Solicitud**: `/city/Medellín`
+- **Ejemplo de Respuesta**:
+```json
+{
+    "city_data": [
+        {
+            "city": "Medellín",
+            "date": "2025-03-15",
+            "avg_temperature": 22.5,
+            "min_temperature": 18.2,
+            "max_temperature": 26.8,
+            "water_m3": 150000,
+            "electricity_kwh": 280000,
+            "population": 2500000,
+            "country": "Colombia"
+        }
+    ]
+}
+```
 
-2. Si hay problemas con las consultas:
-   - Verificar que las tablas existan en Athena
-   - Verificar que los datos estén presentes en S3
-   - Revisar los logs de CloudWatch
+#### 4. Rankings de Temperatura
+- **Endpoint**: `/temperature/rankings`
+- **Método**: GET
+- **Descripción**: Devuelve ciudades ordenadas por su temperatura media
+- **Ejemplo de Respuesta**:
+```json
+{
+    "status": "success",
+    "temperature_rankings": [
+        {
+            "city": "Dubai",
+            "mean_temp": 35.2
+        }
+    ]
+}
+```
 
-3. Si hay problemas con el despliegue:
-   - Verificar que chalice esté instalado y actualizado
-   - Verificar que el archivo config.json esté correctamente configurado 
+#### 5. Rankings de Consumo
+- **Endpoint**: `/consumption/rankings`
+- **Método**: GET
+- **Descripción**: Devuelve ciudades ordenadas por consumo eléctrico promedio por persona
+- **Ejemplo de Respuesta**:
+```json
+{
+    "status": "success",
+    "consumption_rankings": [
+        {
+            "city": "New York",
+            "avg_kwh_per_person": 4500.75
+        }
+    ]
+}
+```
+
+#### 6. Predicciones de Electricidad
+- **Endpoint**: `/predictions/electricity`
+- **Método**: GET
+- **Descripción**: Devuelve predicciones de consumo eléctrico basadas en datos meteorológicos
+- **Ejemplo de Respuesta**:
+```json
+{
+    "status": "success",
+    "predictions": [
+        {
+            "city": "London",
+            "avg_temperature": 15.5,
+            "electricity_kwh": 320000,
+            "prediction": 335000
+        }
+    ]
+}
+```
+
+#### 7. Correlaciones Clima-Consumo
+- **Endpoint**: `/correlations`
+- **Método**: GET
+- **Descripción**: Devuelve análisis de correlación entre métricas meteorológicas y consumo
+- **Ejemplo de Respuesta**:
+```json
+{
+    "correlations": {
+        "temp_electricity_corr": 0.85,
+        "temp_water_corr": 0.72,
+        "electricity_water_corr": 0.65
+    }
+}
+```
+
+### Manejo de Errores
+Todos los endpoints devuelven códigos de estado HTTP apropiados:
+- 200: Solicitud exitosa
+- 404: Recurso no encontrado
+- 500: Error interno del servidor
+
+Las respuestas de error incluyen un mensaje descriptivo:
+```json
+{
+    "error": "Ciudad no encontrada"
+}
+```
+
+### Fuentes de Datos
+La API se integra con:
+- Amazon Athena para consultar datos meteorológicos y de consumo procesados
+- Buckets S3 para acceder a conjuntos de datos refinados y predicciones
+- Capa de datos confiable para registros históricos meteorológicos
+
+### Variables de Entorno
+Variables de entorno requeridas:
+- `REGION`: Región de AWS (por defecto: 'us-east-1')
+- `BUCKET_NAME`: Nombre del bucket S3 (por defecto: 'weather-etl-data-st0263')
+
+### Despliegue
+La API se despliega como una aplicación serverless usando AWS Chalice. Para desarrollo local:
+
+1. Instalar dependencias:
+```bash
+pip install -r requirements.txt
+```
+
+2. Configurar credenciales de AWS:
+```bash
+aws configure
+```
+
+3. Ejecutar localmente:
+```bash
+chalice local
+```
+
+4. Desplegar en AWS:
+```bash
+chalice deploy
+```
