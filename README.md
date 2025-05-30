@@ -149,8 +149,11 @@ weather-etl-pipeline/
 ├── sql/
 │   └── create_tables.sql   # Esquema de base de datos
 ├── datasets/
-│   └── raw_data/
-│       └── mysql_data/     # Datos estáticos
+│   ├── raw_data/
+│   │   ├── api_data/
+│   │   └── mysql_data/
+│   ├── trusted/
+│   └── refined/
 └── README.md
 ```
 
