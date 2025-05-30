@@ -1,0 +1,5 @@
+chalice==1.29.0
+boto3==1.26.0
+pandas==1.5.0
+pyathena==2.25.2
+python-dotenv==1.0.0 
