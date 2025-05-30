@@ -10,13 +10,13 @@ from datetime import datetime
 load_dotenv()
 
 app = Chalice(app_name='weather-api')
-s3 = boto3.client('s3')
+s3 = boto3.client('s3', region_name=os.getenv('REGION', 'us-east-1'))
 athena_connection = connect(
     s3_staging_dir=f's3://weather-etl-data-st0263/query_results/',
     region_name=os.getenv('AWS_REGION', 'us-east-1')
 )
 
-BUCKET = 'weather-etl-data-st0263'
+BUCKET = os.getenv('BUCKET_NAME', 'weather-etl-data-st0263')
 
 def execute_athena_query(query):
     cursor = athena_connection.cursor()

@@ -13,7 +13,7 @@
         }
       },
       "environment_variables": {
-        "AWS_DEFAULT_REGION": "us-east-1",
+        "REGION": "us-east-1",
         "BUCKET_NAME": "weather-etl-data-st0263"
       }
     }
