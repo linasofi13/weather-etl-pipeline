@@ -25,15 +25,38 @@ def execute_athena_query(query):
     results = cursor.fetchall()
     return [dict(zip(columns, row)) for row in results]
 
+def read_csv_from_s3(path):
+    """Helper function to read CSV files from S3"""
+    try:
+        # List objects to get the latest part file
+        objects = s3.list_objects_v2(Bucket=BUCKET, Prefix=path)
+        latest_file = None
+        
+        for obj in objects.get('Contents', []):
+            if obj['Key'].endswith('.csv') and 'part-00000-' in obj['Key']:
+                latest_file = obj['Key']
+                break
+        
+        if not latest_file:
+            raise Exception(f"No CSV file found in {path}")
+            
+        # Get the object
+        obj = s3.get_object(Bucket=BUCKET, Key=latest_file)
+        
+        # Read CSV content
+        return pd.read_csv(obj['Body'])
+    except Exception as e:
+        raise Exception(f"Error reading from S3: {str(e)}")
+
 @app.route('/')
 def index():
     return {
         'available_endpoints': {
             '/cities': 'List all cities with their latest weather data',
             '/city/{city_name}': 'Get detailed weather data for a specific city',
-            '/temperature/rankings': 'Get temperature rankings across all cities',
-            '/consumption/rankings': 'Get consumption rankings across all cities',
-            '/predictions/electricity': 'Get electricity consumption predictions',
+            '/temperature/rankings': 'Get temperature rankings by city (mean_temp)',
+            '/consumption/rankings': 'Get consumption rankings by city (avg_kwh_per_capita)',
+            '/predictions/electricity': 'Get electricity consumption predictions by city',
             '/correlations': 'Get correlation analysis between weather and consumption',
             '/clusters': 'Get city clusters based on weather and consumption patterns'
         }
@@ -82,55 +105,95 @@ def get_city_data(city_name):
 
 @app.route('/temperature/rankings')
 def get_temperature_rankings():
-    query = """
-    SELECT city, avg(avg_temperature) as avg_temp
-    FROM trusted
-    WHERE year = 2025
-    GROUP BY city
-    ORDER BY avg_temp DESC
-    LIMIT 10
+    """
+    Get temperature rankings from temperature_per_city data
+    Returns: city and mean_temp for each city
     """
     try:
-        results = execute_athena_query(query)
-        return {'temperature_rankings': results}
+        df = read_csv_from_s3('refined/temperature_per_city/')
+        
+        # Ensure we have the expected columns
+        if 'city' not in df.columns or 'mean_temp' not in df.columns:
+            raise Exception("Invalid data format in temperature rankings file")
+        
+        # Sort by temperature descending
+        df = df.sort_values('mean_temp', ascending=False)
+        
+        # Convert DataFrame to records
+        rankings = df.to_dict('records')
+        
+        return {
+            'status': 'success',
+            'temperature_rankings': rankings
+        }
     except Exception as e:
         return Response(
-            body={'error': str(e)},
+            body={
+                'status': 'error',
+                'message': str(e)
+            },
             status_code=500
         )
 
 @app.route('/consumption/rankings')
 def get_consumption_rankings():
-    query = """
-    SELECT city, 
-           avg(electricity_kwh/population) as avg_consumption_per_capita
-    FROM trusted
-    WHERE year = 2025 AND population > 0
-    GROUP BY city
-    ORDER BY avg_consumption_per_capita DESC
-    LIMIT 10
+    """
+    Get consumption rankings from consumption_ranking data
+    Returns: city and avg_kwh_per_capita for each city
     """
     try:
-        results = execute_athena_query(query)
-        return {'consumption_rankings': results}
+        df = read_csv_from_s3('refined/consumption_ranking/')
+        
+        # Ensure we have the expected columns
+        if 'city' not in df.columns or 'avg_kwh_per' not in df.columns:
+            raise Exception("Invalid data format in consumption rankings file")
+        
+        # Sort by consumption descending
+        df = df.sort_values('avg_kwh_per', ascending=False)
+        
+        # Convert DataFrame to records
+        rankings = df.to_dict('records')
+        
+        return {
+            'status': 'success',
+            'consumption_rankings': rankings
+        }
     except Exception as e:
         return Response(
-            body={'error': str(e)},
+            body={
+                'status': 'error',
+                'message': str(e)
+            },
             status_code=500
         )
 
 @app.route('/predictions/electricity')
 def get_electricity_predictions():
+    """
+    Get electricity consumption predictions
+    Returns: city, avg_temperature, electricity_kwh, and prediction for each city
+    """
     try:
-        # Read predictions from refined zone
-        predictions_df = pd.read_csv(
-            f's3://{BUCKET}/refined/electricity_predictions/part-00000-*.csv'
-        )
-        predictions = predictions_df.to_dict('records')
-        return {'predictions': predictions}
+        df = read_csv_from_s3('refined/electricity_predictions/')
+        
+        # Ensure we have the expected columns
+        expected_columns = ['city', 'avg_temperature', 'electricity_kwh', 'prediction']
+        if not all(col in df.columns for col in expected_columns):
+            raise Exception("Invalid data format in predictions file")
+        
+        # Convert DataFrame to records
+        predictions = df.to_dict('records')
+        
+        return {
+            'status': 'success',
+            'predictions': predictions
+        }
     except Exception as e:
         return Response(
-            body={'error': str(e)},
+            body={
+                'status': 'error',
+                'message': str(e)
+            },
             status_code=500
         )
 
