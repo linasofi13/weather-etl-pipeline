@@ -8,221 +8,151 @@ from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.evaluation import ClusteringEvaluator
 
-# Inicializar Spark con configuración optimizada para AWS
+# Inicializar Spark con configuraciones optimizadas para memoria limitada
 spark = SparkSession.builder \
     .appName("WeatherAnalysisML") \
     .config("spark.sql.adaptive.enabled", "true") \
     .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+    .config("spark.sql.shuffle.partitions", "10") \
+    .config("spark.memory.fraction", "0.6") \
+    .config("spark.memory.storageFraction", "0.5") \
+    .config("spark.default.parallelism", "10") \
+    .config("spark.sql.files.maxPartitionBytes", "128m") \
+    .config("spark.sql.autoBroadcastJoinThreshold", "10m") \
     .getOrCreate()
 
 print("=== INICIANDO ANÁLISIS AVANZADO CON SPARKML ===")
 
-# Leer datos desde S3 zona trusted
-trusted_path = "s3://weather-etl-data-st0263/trusted/year=2025/"
-df = spark.read.option("header", True).csv(trusted_path)
+try:
+    # Leer datos desde S3 zona trusted con particionamiento
+    trusted_path = "s3://weather-etl-data-st0263/trusted/year=2025/"
+    df = spark.read.option("header", True) \
+                   .option("inferSchema", "false") \
+                   .csv(trusted_path)
 
-print(f"Datos leídos desde S3: {df.count()} registros")
+    print(f"Datos leídos desde S3: {df.count()} registros")
 
-# Convertir columnas numéricas correctamente
-df = df.withColumn("avg_temperature", F.col("avg_temperature").cast("double")) \
-       .withColumn("min_temperature", F.col("min_temperature").cast("double")) \
-       .withColumn("max_temperature", F.col("max_temperature").cast("double")) \
-       .withColumn("electricity_kwh", F.col("electricity_kwh").cast("double")) \
-       .withColumn("water_m3", F.col("water_m3").cast("double")) \
-       .withColumn("population", F.col("population").cast("int")) \
-       .withColumn("latitude", F.col("latitude").cast("double")) \
-       .withColumn("longitude", F.col("longitude").cast("double"))
+    # Convertir columnas numéricas y aplicar casting de manera más eficiente
+    numeric_columns = {
+        "avg_temperature": "double",
+        "min_temperature": "double",
+        "max_temperature": "double",
+        "electricity_kwh": "double",
+        "water_m3": "double",
+        "population": "int",
+        "latitude": "double",
+        "longitude": "double"
+    }
 
-# Crear variables derivadas
-df = df.withColumn("kwh_per_person", F.col("electricity_kwh") / F.col("population")) \
-       .withColumn("water_per_person", F.col("water_m3") / F.col("population")) \
-       .withColumn("temp_range", F.col("max_temperature") - F.col("min_temperature"))
+    # Convertir tipos de columna de manera eficiente
+    for col, dtype in numeric_columns.items():
+        df = df.withColumn(col, F.col(col).cast(dtype))
 
-# ————————————————————————————————————————
-# Análisis descriptivo existente
-# ————————————————————————————————————————
+    # Crear variables derivadas con manejo de nulos
+    df = df.withColumn(
+        "kwh_per_person",
+        F.when(F.col("population") > 0, F.col("electricity_kwh") / F.col("population")).otherwise(0)
+    ).withColumn(
+        "water_per_person",
+        F.when(F.col("population") > 0, F.col("water_m3") / F.col("population")).otherwise(0)
+    ).withColumn(
+        "temp_range",
+        F.col("max_temperature") - F.col("min_temperature")
+    )
 
-# 1. Temperatura promedio por ciudad
-temp_avg = df.groupBy("city") \
-             .agg(F.avg("avg_temperature").alias("mean_temp"))
+    # Análisis descriptivo con optimización de memoria
+    print("\nRealizando análisis descriptivo...")
+    
+    # 1. Temperatura promedio por ciudad (usando repartition para control de memoria)
+    temp_avg = df.groupBy("city") \
+                 .agg(F.avg("avg_temperature").alias("mean_temp")) \
+                 .repartition(5)
 
-# 2. Top ciudades con mayor consumo per cápita
-consumo_per_capita = df.withColumn("kwh_per_person", F.col("electricity_kwh") / F.col("population")) \
-    .groupBy("city") \
-    .agg(F.avg("kwh_per_person").alias("avg_kwh_per_person")) \
-    .orderBy(F.desc("avg_kwh_per_person"))
+    # 2. Consumo per cápita (optimizado)
+    consumo_per_capita = df.groupBy("city") \
+        .agg(
+            F.avg("kwh_per_person").alias("avg_kwh_per_person"),
+            F.avg("water_per_person").alias("avg_water_per_capita")
+        ).repartition(5)
 
-# 3. Estadísticas generales por ciudad
-city_stats = df.groupBy("city").agg(
-    F.avg("avg_temperature").alias("avg_temp"),
-    F.avg("kwh_per_person").alias("avg_kwh_per_capita"),
-    F.avg("water_per_person").alias("avg_water_per_capita"),
-    F.avg("temp_range").alias("avg_temp_range"),
-    F.first("latitude").alias("latitude"),
-    F.first("longitude").alias("longitude"),
-    F.first("population").alias("population"),
-    F.count("*").alias("records_count")
-)
+    # Preparación para ML con control de memoria
+    print("\nPreparando datos para ML...")
+    
+    # Seleccionar solo las columnas necesarias para ML
+    ml_cols = ["avg_temperature", "population", "latitude", "longitude", "electricity_kwh"]
+    ml_df = df.select(*ml_cols).repartition(10)
 
-# Guardar resultados en zona refined S3
-temp_avg.coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/temperature_per_city")
+    # Preparar features con manejo de memoria
+    assembler = VectorAssembler(
+        inputCols=["population", "latitude", "longitude"],
+        outputCol="features"
+    )
+    
+    # Preparar datos para ML con limpieza
+    ml_data = assembler.transform(ml_df) \
+        .select("features", "electricity_kwh") \
+        .na.drop()
 
-consumo_per_capita.coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/consumption_ranking")
+    # Dividir datos con tamaño controlado
+    train_data, test_data = ml_data.randomSplit([0.8, 0.2], seed=42)
 
-city_stats.coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/city_comprehensive_stats")
+    print("\nEntrenando modelo de regresión...")
+    # Modelo de regresión lineal con parámetros conservadores
+    lr = LinearRegression(
+        featuresCol="features",
+        labelCol="electricity_kwh",
+        maxIter=10,
+        regParam=0.3,
+        elasticNetParam=0.8,
+        standardization=True
+    )
 
-print("Análisis descriptivo completado y datos guardados en zona refined S3.")
+    # Entrenar y evaluar
+    lr_model = lr.fit(train_data)
+    predictions = lr_model.transform(test_data)
 
-# ————————————————————————————————————————
-# 1) Regresión lineal: predecir electricity_kwh
-# ————————————————————————————————————————
+    # Evaluar modelo
+    evaluator = RegressionEvaluator(
+        labelCol="electricity_kwh",
+        predictionCol="prediction",
+        metricName="rmse"
+    )
+    rmse = evaluator.evaluate(predictions)
+    r2 = evaluator.setMetricName("r2").evaluate(predictions)
 
-print("\n=== MODELO DE REGRESIÓN LINEAL ===")
+    print(f"\nResultados del modelo:")
+    print(f"RMSE: {rmse:.2f}")
+    print(f"R²: {r2:.3f}")
 
-# Crear vector de características: temperatura, población y ubicación
-assembler_reg = VectorAssembler(
-    inputCols=["avg_temperature", "population", "latitude", "longitude"],
-    outputCol="features"
-)
-df_reg = assembler_reg.transform(df).select("features", "electricity_kwh", "city", "avg_temperature")
+    # Guardar resultados de manera eficiente
+    print("\nGuardando resultados...")
+    
+    # Guardar con particionamiento y compresión
+    temp_avg.write.mode("overwrite") \
+        .option("compression", "snappy") \
+        .option("header", True) \
+        .csv("s3://weather-etl-data-st0263/refined/temperature_per_city")
 
-# Dividir en train/test
-train_reg, test_reg = df_reg.randomSplit([0.8, 0.2], seed=42)
+    consumo_per_capita.write.mode("overwrite") \
+        .option("compression", "snappy") \
+        .option("header", True) \
+        .csv("s3://weather-etl-data-st0263/refined/consumption_ranking")
 
-# Entrenar modelo de regresión lineal
-lr = LinearRegression(featuresCol="features", labelCol="electricity_kwh")
-lr_model = lr.fit(train_reg)
+    # Guardar predicciones
+    predictions.select("prediction", "electricity_kwh") \
+        .withColumn("error", F.abs(F.col("prediction") - F.col("electricity_kwh"))) \
+        .repartition(5) \
+        .write.mode("overwrite") \
+        .option("compression", "snappy") \
+        .option("header", True) \
+        .csv("s3://weather-etl-data-st0263/refined/model_predictions")
 
-# Hacer predicciones
-predictions_reg = lr_model.transform(test_reg)
-predictions_reg.select("prediction", "electricity_kwh", "city", "avg_temperature").show(10)
+    print("\nAnálisis completado exitosamente")
 
-# Evaluar con RMSE
-evaluator_reg = RegressionEvaluator(
-    predictionCol="prediction",
-    labelCol="electricity_kwh",
-    metricName="rmse"
-)
-rmse = evaluator_reg.evaluate(predictions_reg)
-r2 = evaluator_reg.setMetricName("r2").evaluate(predictions_reg)
-
-print(f"Regresión lineal RMSE: {rmse:.2f}")
-print(f"Regresión lineal R²: {r2:.3f}")
-
-# Guardar predicciones en S3 con más información
-predictions_reg.select("city", "avg_temperature", "electricity_kwh", "prediction") \
-    .withColumn("error", F.abs(F.col("electricity_kwh") - F.col("prediction"))) \
-    .coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/regression_predictions")
-
-
-# ————————————————————————————————————————
-# 2) Clustering K-Means: agrupar ciudades por patrones
-# ————————————————————————————————————————
-
-print("\n=== CLUSTERING K-MEANS DE CIUDADES ===")
-
-# Usar estadísticas por ciudad para clustering más significativo
-assembler_clust = VectorAssembler(
-    inputCols=["avg_temp", "avg_kwh_per_capita", "avg_water_per_capita", "latitude", "longitude"],
-    outputCol="features_clust"
-)
-city_features = assembler_clust.transform(city_stats)
-
-# Entrenar K-Means con 4 clusters
-kmeans = KMeans(featuresCol="features_clust", k=4, seed=1)
-kmeans_model = kmeans.fit(city_features)
-
-# Asignar cluster a cada ciudad
-city_clustered = kmeans_model.transform(city_features)
-
-# Mostrar información de clusters
-print("Distribución de ciudades por cluster:")
-city_clustered.groupBy("prediction").count().show()
-
-# Mostrar características de cada cluster
-print("Características promedio por cluster:")
-cluster_summary = city_clustered.groupBy("prediction").agg(
-    F.avg("avg_temp").alias("cluster_avg_temp"),
-    F.avg("avg_kwh_per_capita").alias("cluster_avg_consumption"),
-    F.count("*").alias("cities_in_cluster")
-)
-cluster_summary.show()
-
-# Evaluar silhouette
-evaluator_clust = ClusteringEvaluator(
-    featuresCol="features_clust",
-    metricName="silhouette"
-)
-silhouette = evaluator_clust.evaluate(city_clustered)
-print(f"Clustering Silhouette score: {silhouette:.3f}")
-
-# Guardar resultados detallados de clustering en S3
-city_clustered.select("city", "avg_temp", "avg_kwh_per_capita", "population", 
-                     "latitude", "longitude", "prediction") \
-    .withColumnRenamed("prediction", "cluster") \
-    .coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/city_clusters_detailed")
-
-# Guardar resumen de clusters
-cluster_summary.coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/cluster_summary")
-
-# ————————————————————————————————————————
-# 3) Análisis de correlaciones
-# ————————————————————————————————————————
-
-print("\n=== ANÁLISIS DE CORRELACIONES ===")
-
-# Calcular correlaciones importantes
-correlations = {}
-correlation_pairs = [
-    ("avg_temperature", "electricity_kwh"),
-    ("avg_temperature", "water_m3"),
-    ("population", "electricity_kwh"),
-    ("latitude", "avg_temperature"),
-    ("kwh_per_person", "avg_temperature")
-]
-
-for col1, col2 in correlation_pairs:
-    corr = df.stat.corr(col1, col2)
-    correlations[f"{col1}_vs_{col2}"] = corr
-    print(f"Correlación {col1} vs {col2}: {corr:.3f}")
-
-# Crear DataFrame de correlaciones y guardarlo
-correlation_data = spark.createDataFrame([
-    (pair.replace("_vs_", " vs "), corr) 
-    for pair, corr in correlations.items()
-], ["variable_pair", "correlation"])
-
-correlation_data.coalesce(1).write.mode("overwrite") \
-    .option("header", True) \
-    .csv("s3://weather-etl-data-st0263/refined/correlation_matrix")
-
-print("\n=== RESUMEN FINAL ===")
-print(f"✓ Modelos ML entrenados y evaluados")
-print(f"✓ RMSE Regresión: {rmse:.2f}, R²: {r2:.3f}")
-print(f"✓ Silhouette Clustering: {silhouette:.3f}")
-print(f"✓ {len(correlations)} correlaciones calculadas")
-print(f"✓ Resultados guardados en S3: s3://weather-etl-data-st0263/refined/")
-
-print("\nArchivos generados:")
-print("- temperature_per_city/ : Temperaturas promedio por ciudad")
-print("- consumption_ranking/ : Ranking de consumo per cápita")
-print("- city_comprehensive_stats/ : Estadísticas completas por ciudad")
-print("- regression_predictions/ : Predicciones del modelo ML")
-print("- city_clusters_detailed/ : Clustering detallado de ciudades")
-print("- cluster_summary/ : Resumen de características por cluster")
-print("- correlation_matrix/ : Matriz de correlaciones")
-
-# Detener Spark
-spark.stop()
+except Exception as e:
+    print(f"\nError en el procesamiento: {str(e)}")
+    raise
+finally:
+    # Limpiar recursos
+    spark.catalog.clearCache()
+    spark.stop()
