@@ -6,6 +6,12 @@
       "api_gateway_stage": "api",
       "autogen_policy": false,
       "iam_role_arn": "arn:aws:iam::407110738051:role/LabRole",
+      "lambda_functions": {
+        "api_handler": {
+          "manage_iam_role": false,
+          "iam_role_arn": "arn:aws:iam::407110738051:role/LabRole"
+        }
+      },
       "environment_variables": {
         "AWS_DEFAULT_REGION": "us-east-1",
         "BUCKET_NAME": "weather-etl-data-st0263"
