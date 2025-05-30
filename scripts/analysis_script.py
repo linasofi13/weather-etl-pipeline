@@ -1,6 +1,5 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-# Imports adicionales para SparkML
 from pyspark.ml.feature import VectorAssembler, StandardScaler, StringIndexer
 from pyspark.ml.regression import LinearRegression, RandomForestRegressor
 from pyspark.ml.clustering import KMeans
